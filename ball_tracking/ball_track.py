@@ -9,7 +9,7 @@ INPUT_SHAPE = (416, 416)
 ANCHORS_MATRIX = [[116,90, 156,198, 373,326], [30,61, 62,45, 59,119], [10,13, 16,30, 33,23]]
 CONFIDENCE_THRESH = 0.002
 NUM_BOXES_PER_CELL = 3
-NMS_THRESH = 0.3
+NMS_THRESH = 0.8
 
 
 def _sigmoid(X):
@@ -55,8 +55,9 @@ def predict(img):
     predictions = []
     for prediction, anchors in zip(model_predictions, ANCHORS_MATRIX):
         bboxes, classes, confidences = decode_output(prediction[0], anchors, CONFIDENCE_THRESH, INPUT_SHAPE[0], INPUT_SHAPE[1])
-        print(bboxes.shape, classes.shape)
+        print(classes)
         non_maximum_suppression(bboxes, classes, NMS_THRESH)
+        print(classes)
         predictions.append((bboxes, classes, confidences))
     return predictions
     

@@ -19,7 +19,6 @@ static PyObject* non_maximum_suppression(PyObject* self, PyObject* args)
     
     float *bboxes_data = reinterpret_cast<float *>(PyArray_DATA(bboxes_np));
     npy_intp *shape = bboxes_np->dimensions;
-    printf("%d %d", shape[0], shape[1]);
 
     BBox *bboxes_obj = new BBox[shape[0]];
     memcpy(bboxes_obj, bboxes_data, shape[0] * sizeof(BBox));
@@ -27,7 +26,7 @@ static PyObject* non_maximum_suppression(PyObject* self, PyObject* args)
     
     float *classes_arr_data = reinterpret_cast<float *>(PyArray_DATA(classes_arr_np));
     shape = classes_arr_np->dimensions;
-    printf("\n%d %d", shape[0], shape[1]);
+    
     std::vector<Classes> classes_arr(shape[0]);
     for (size_t i = 0; i < shape[0]; i++)
     {
@@ -44,7 +43,6 @@ static PyObject* non_maximum_suppression(PyObject* self, PyObject* args)
     PyArray_ENABLEFLAGS(classes_arr_np, NPY_ARRAY_OWNDATA);
 
     Py_RETURN_NONE;
-    // return Py_BuildValue("(N,N)", bboxes_np, classes_arr_np);
 }
 
 static PyMethodDef methods[] = {
