@@ -12,7 +12,7 @@ static PyObject* non_maximum_suppression(PyObject* self, PyObject* args)
 {
     PyArrayObject *bboxes_np, *classes_arr_np;
     float thresh;
-    if(!PyArg_ParseTuple(args, "OOf", &bboxes_np, &classes_arr_np, &thresh))
+    if (!PyArg_ParseTuple(args, "OOf", &bboxes_np, &classes_arr_np, &thresh))
     {
         return NULL;
     }

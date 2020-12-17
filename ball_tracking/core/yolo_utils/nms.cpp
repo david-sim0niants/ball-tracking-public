@@ -31,7 +31,7 @@ float interval_overlap(float a0, float b0, float a1, float b1)
 
 float bbox_iou(BBox bbox_a, BBox bbox_b)
 {
-    float intersect_w = interval_overlap(bbox_a.x, bbox_a.x + bbox_a.h, bbox_b.x, bbox_b.x + bbox_b.h);
+    float intersect_w = interval_overlap(bbox_a.x, bbox_a.x + bbox_a.w, bbox_b.x, bbox_b.x + bbox_b.w);
     float intersect_h = interval_overlap(bbox_a.y, bbox_a.y + bbox_a.h, bbox_b.y, bbox_b.y + bbox_b.h);
     
     float intersect = intersect_w * intersect_h;
