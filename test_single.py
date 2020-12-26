@@ -2,13 +2,10 @@ from ball_tracking.utils import draw_bboxes
 from ball_tracking import *
 
 np.set_printoptions(suppress=True)
-img = cv2.imread('examples/ball-0.jpg')
-predictions = predict(img)
+img = cv2.imread('examples/ball-2.jpg')
 
-for pred in predictions:
-    (bboxes, classes, confidences), (bboxes_indices, label_indices), (labels, probabilities) = pred
-    print(bboxes, labels, probabilities, classes)
-    draw_bboxes(img, bboxes, labels, label_indices, probabilities)
+bboxes, (labels, label_indices), (probabilities, confidences) = predict(img)
+draw_bboxes(img, bboxes, labels, label_indices, probabilities)
 
 cv2.imshow('result', img)
 cv2.waitKey(0)

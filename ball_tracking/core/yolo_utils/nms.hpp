@@ -4,11 +4,11 @@
 
 struct BBox
 {
-    float x, y, w, h;
+    double x, y, w, h;
 };
 
-typedef std::vector<float> Classes;
+typedef std::vector<double> Classes;
 
-void NonMaximumSuppression(std::vector<BBox> &bboxes, std::vector<Classes> &classes_arr, float thresh);
+void NonMaximumSuppression(std::vector<BBox> &bboxes, std::vector<Classes> &classes_arr, double thresh);
 
 #endif

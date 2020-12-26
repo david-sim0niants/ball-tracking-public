@@ -3,6 +3,8 @@ import numpy as np
 
 
 def draw_bboxes(image, bboxes, labels, label_indices, probabilities):
+    if len(bboxes) == 0 or len(labels) == 0 or len(label_indices) == 0 or len(probabilities) == 0:
+        return
     np.random.seed(42)
     colors = np.random.randint(0, 256, (np.max(label_indices) + 1, 3))
     for bbox, label, label_index, probability in zip(bboxes, labels, label_indices, probabilities):

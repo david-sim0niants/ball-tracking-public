@@ -9,8 +9,8 @@ INPUT_SHAPE = (416, 416)
 ANCHORS_MATRIX = [[116,90, 156,198, 373,326], [30,61, 62,45, 59,119], [10,13, 16,30, 33,23]]
 CONFIDENCE_THRESH = 0.002
 NUM_BOXES_PER_CELL = 3
-NMS_THRESH = 0.8
-CLASS_THRESH = 0.02
+NMS_THRESH = 0.5
+CLASS_THRESH = 0.7
 LABELS = np.array(["person", "bicycle", "car", "motorbike", "aeroplane", "bus", "train", "truck",
 	"boat", "traffic light", "fire hydrant", "stop sign", "parking meter", "bench",
 	"bird", "cat", "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe",
@@ -31,7 +31,7 @@ def decode_output(output, anchors, confidence_thresh, input_width, input_height)
     output = output.reshape((grid_height, grid_width, NUM_BOXES_PER_CELL, -1))
     output[..., :2] = _sigmoid(output[..., :2])
     output[..., 4:] = _sigmoid(output[..., 4:])
-    output[..., 5:] = output[..., 4, None] * output[..., 5:]
+    # output[..., 5:] = output[..., 4, None] * output[..., 5:]
     output[..., 5:] *= output[..., 5:] >= confidence_thresh
     anchors = np.array(anchors)
     
@@ -54,7 +54,7 @@ def decode_output(output, anchors, confidence_thresh, input_width, input_height)
     bboxes = np.concatenate([X[confident_mask, ..., None], Y[confident_mask, ..., None], W[confident_mask, ..., None], H[confident_mask, ..., None]], axis=-1)
     classes = output[..., 5:].reshape(-1, output.shape[-1] - 5)[confident_mask]
     
-    return bboxes, classes, confidences
+    return bboxes.astype('float64'), classes.astype('float64'), confidences.astype('float64')
 
 
 def prepare_image(img):
@@ -65,18 +65,36 @@ def prepare_image(img):
 
 def predict(img):
     model_predictions = model.predict(prepare_image(img))
-    predictions = []
+    
+    total_bboxes = []
+    total_classes = []
+    total_confidences = []
+
     for prediction, anchors in zip(model_predictions, ANCHORS_MATRIX):
         bboxes, classes, confidences = decode_output(prediction[0], anchors, CONFIDENCE_THRESH, INPUT_SHAPE[0], INPUT_SHAPE[1])
-        non_maximum_suppression(bboxes, classes, NMS_THRESH)
-
-        classes_mask = classes > CLASS_THRESH
-        bbox_indices, label_indices = np.where(classes_mask)
-        bboxes = bboxes[bbox_indices]
-        labels = LABELS[label_indices]
-        probabilities = classes[classes_mask]
         
-        predictions.append(((bboxes, classes, confidences), (bbox_indices, label_indices), (labels, probabilities)))
-    return predictions
+        total_bboxes.append(bboxes)
+        total_classes.append(classes)
+        total_confidences.append(confidences)
     
-model = tf.keras.models.load_model(os.path.join(os.path.dirname(__file__), 'nn/yolov3-tiny-model.h5'))
+    bboxes = np.concatenate(total_bboxes, axis=0)
+    classes = np.concatenate(total_classes, axis=0)
+    confidences = np.concatenate(total_confidences, axis=0)
+
+    classes_mask = (1 >= classes) * (classes > CLASS_THRESH)
+    bbox_indices, label_indices = np.where(classes_mask)
+    bboxes = bboxes[bbox_indices]
+    classes = classes[np.unique(bbox_indices)]
+
+    non_maximum_suppression(bboxes, classes, NMS_THRESH)
+
+    classes_mask = (1 >= classes) * (classes > CLASS_THRESH)
+    bbox_indices, label_indices = np.where(classes_mask)
+    bboxes = bboxes[bbox_indices]
+    labels = LABELS[label_indices]
+    probabilities = classes[classes_mask]
+
+    return bboxes, (labels, label_indices), (probabilities, confidences)
+
+    
+model = tf.keras.models.load_model(os.path.join(os.path.dirname(__file__), 'nn/yolov3-spp-model.h5'))
