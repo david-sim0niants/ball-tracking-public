@@ -40,10 +40,10 @@ class YoloModel:
     def prepare_image(self, img):
         img = cv2.resize(img, self.input_shape)
         img = img.astype('float32') / 255.0
-        return img[None]
+        return img
 
     def predict(self, img):
-        predictions = self.model.predict(self.prepare_image(img))
+        predictions = self.model.predict(self.prepare_image(img)[None])
         
         total_bboxes = []
         total_classes = []
@@ -73,6 +73,7 @@ class YoloModel:
         bboxes = bboxes[bbox_indices]
         labels = self.labels[label_indices]
         probabilities = classes[classes_mask]
+        confidences = confidences[bbox_indices]
 
         return bboxes, (labels, label_indices), (probabilities, confidences)
 
@@ -107,5 +108,5 @@ def decode_output(output, anchors, confidence_thresh, input_width, input_height,
     confidences = confidences[confident_mask]
     bboxes = np.concatenate([X[confident_mask, ..., None], Y[confident_mask, ..., None], W[confident_mask, ..., None], H[confident_mask, ..., None]], axis=-1)
     classes = output[..., 5:].reshape(-1, output.shape[-1] - 5)[confident_mask]
-    
+
     return bboxes.astype('float64'), classes.astype('float64'), confidences.astype('float64')

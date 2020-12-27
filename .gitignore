@@ -1,2 +1,3 @@
 .vscode/
-examples/*.png
+examples/*
+!examples/ball-0.jpg
