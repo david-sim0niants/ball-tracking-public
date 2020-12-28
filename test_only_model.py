@@ -2,7 +2,7 @@ from ball_tracking.utils import draw_bboxes
 from ball_tracking import *
 
 np.set_printoptions(suppress=True)
-img = cv2.imread('examples/balls.jpg')
+img = cv2.imread('examples/ball-0.jpg')
 
 yolo_model = YoloModel()
 bboxes, (labels, label_indices), (probabilities, confidences) = yolo_model.predict(img)

@@ -12,7 +12,7 @@ inline std::vector<size_t> argsort(const std::vector<T> &v)
     std::stable_sort(idx.begin(), idx.end(), [&v](size_t i1, size_t i2) {return v[i1] > v[i2];});
     return idx;
 }
-//a0 = x1, b0 = x2, a1 = x3, b1 = x4
+
 inline double interval_overlap(double a0, double b0, double a1, double b1)
 {
     if (a1 < a0)

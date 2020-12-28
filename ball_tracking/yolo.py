@@ -1,8 +1,10 @@
+from numpy.lib.function_base import meshgrid
 import tensorflow as tf
 import numpy as np
 import cv2
 from .core import *
 import os
+import PIL as pil
 
 
 
@@ -24,7 +26,9 @@ class YoloModel:
         "chair", "sofa", "pottedplant", "bed", "diningtable", "toilet", "tvmonitor", "laptop", "mouse",
         "remote", "keyboard", "cell phone", "microwave", "oven", "toaster", "sink", "refrigerator",
         "book", "clock", "vase", "scissors", "teddy bear", "hair drier", "toothbrush"])
-    
+    stretch_input_image = False
+    max_input_image_resizing = (1.05, 1.05)
+
 
     def __init__(self, **kwargs):    
         self.nms_thresh = kwargs.get('nms_thresh', self.nms_thresh)
@@ -37,25 +41,47 @@ class YoloModel:
     def load_model(self, h5_path):
         self.model = tf.keras.models.load_model(h5_path)
 
-    def prepare_image(self, img):
-        img = cv2.resize(img, self.input_shape)
-        img = img.astype('float32') / 255.0
-        return img
-
     def predict(self, img):
-        predictions = self.model.predict(self.prepare_image(img)[None])
+
+        if not self.stretch_input_image:
+            processed_images, (x_axis, y_axis) = preprocess_image(img, self.input_shape, 'divide', self.max_input_image_resizing)
+            processed_images = processed_images.reshape(-1, *processed_images.shape[2:])
+            grid_height, grid_width = len(y_axis), len(x_axis)
+        else:
+            processed_images = preprocess_image(img, self.input_shape, 'stretch')
+        predictions = self.model.predict(processed_images)
         
         total_bboxes = []
         total_classes = []
         total_confidences = []
 
         for prediction, anchors in zip(predictions, self.anchors_matrix):
-            bboxes, classes, confidences = decode_output(prediction[0], anchors, self.confidence_thresh, \
-                self.input_shape[0], self.input_shape[1], self.num_boxes_per_cell)
+            if self.stretch_input_image:
+                bboxes, classes, confidences = decode_output(prediction[0], anchors, self.confidence_thresh, \
+                    self.input_shape[0], self.input_shape[1], self.num_boxes_per_cell)
+                bboxes = [bboxes]
+                classes = [classes]
+                confidences = [confidences]
+            else:
+                prediction = prediction.reshape(grid_height, grid_width, *prediction.shape[1:])
+                print(prediction.shape)
+                bboxes = [None] * (grid_height * grid_width)
+                classes = [None] * (grid_height * grid_width)
+                confidences = [None] * (grid_height * grid_width)
+                flat_idx = 0
+                print(grid_height, grid_width)
+                for i in range(grid_height):
+                    for j in range(grid_width):
+                        print(x_axis[j], y_axis[i])
+                        bboxes[flat_idx], classes[flat_idx], confidences[flat_idx] = decode_output(prediction[i, j],\
+                             anchors, self.confidence_thresh, self.input_shape[0], self.input_shape[1], self.num_boxes_per_cell)
+                        bboxes[flat_idx] = [x_axis[j], y_axis[i]][::-1] + [0, 0] + bboxes[flat_idx] * ([self.input_shape[1] / img.shape[1], self.input_shape[0] / img.shape[0]] * 2)
+                        
+                        flat_idx += 1
             
-            total_bboxes.append(bboxes)
-            total_classes.append(classes)
-            total_confidences.append(confidences)
+            total_bboxes += bboxes
+            total_classes += classes
+            total_confidences += confidences
         
         bboxes = np.concatenate(total_bboxes, axis=0)
         classes = np.concatenate(total_classes, axis=0)
@@ -77,6 +103,42 @@ class YoloModel:
 
         return bboxes, (labels, label_indices), (probabilities, confidences)
 
+
+def preprocess_image(img, model_input_shape, method='stretch', max_resizing=(1.05, 1.05)):
+
+    if method == 'stretch' or img.shape[1] / model_input_shape[1] <= max_resizing[0] and img.shape[0] / model_input_shape[0] <= max_resizing[1]:
+        img = img.astype('float32') / 255.0
+        imgs = tf.image.resize([img], model_input_shape, method=tf.image.ResizeMethod.BILINEAR, antialias=True).numpy()
+        return imgs
+        
+    elif method == 'divide':
+        half_input_shape = (model_input_shape[0] // 2, model_input_shape[1] // 2)
+        grid_shape = [img.shape[0] // (half_input_shape[0]), img.shape[1] // (half_input_shape[1])]
+
+        imgs = np.zeros(tuple(grid_shape) + model_input_shape + img.shape[-1:], dtype=img.dtype)
+        min_i, max_i, min_j, max_j = 0, 0, 0, 0
+
+        x_axis = np.arange(grid_shape[1]) / grid_shape[1]
+        x_axis[-1] = 1 - model_input_shape[1] / img.shape[1]
+        y_axis = np.arange(grid_shape[0]) / grid_shape[0]
+        y_axis[-1] = 1 - model_input_shape[0] / img.shape[0]
+
+        for i in range(grid_shape[0] - 1):
+            max_i = min_i + model_input_shape[0]
+            for j in range(grid_shape[1] - 1):
+                max_j = min_j + model_input_shape[1]
+                imgs[i, j] = img[min_i:max_i, min_j:max_j]
+                min_j = max_j - half_input_shape[1]
+            imgs[i, -1] = img[min_i:max_i, -model_input_shape[1]:]
+            min_j = 0
+            min_i = max_i - half_input_shape[0]
+        for j in range(grid_shape[1] - 1):
+            max_j = min_j + model_input_shape[1]
+            imgs[-1, j] = img[-model_input_shape[0]:, min_j:max_j]
+            min_j = max_j - half_input_shape[1]
+        imgs[-1, -1] = img[-model_input_shape[0]:, -model_input_shape[1]:]
+        
+        return imgs.astype('float32') / 255, (x_axis, y_axis)
 
 def _sigmoid(X):
     return 1. / (1. + np.exp(-X))
